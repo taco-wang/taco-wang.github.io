@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+
+<title>
+  elasticsearch 和mongodb 同步踩坑之旅 | taco&#39;s blog
+</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/5.15.1/css/all.css" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://taco-wang.github.io/favicon.ico?v=1732369647787">
+<link rel="stylesheet" href="https://taco-wang.github.io/styles/main.css">
+
+
+  
+    <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css" />
+    
+
+      
+          
+
+            <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/aos/3.0.0-beta.6/aos.css" />
+            <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+            
+              <script async src="https://www.googletagmanager.com/gtag/js?id=UA-178669289-1"></script>
+              <script>
+                window.dataLayer = window.dataLayer || [];
+                function gtag() { dataLayer.push(arguments); }
+                gtag('js', new Date());
+
+                gtag('config', 'UA-178669289-1');
+              </script>
+              
+    <meta name="description" content="同步数据目前看有两种方式
+
+在mongodb 的操作后加入 对es 的同步，
+读取mongodb的 oplog然后间接同步数据
+
+第一种 目前 有两种思路，1是在代码里面修改逻辑，加入对es的同步，第二种 就是 使用Mongose的插件，比..." />
+    <meta name="keywords" content="" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://taco-wang.github.io">
+        <img src="https://taco-wang.github.io/images/avatar.png?v=1732369647787" class="site-logo">
+        <h1 class="site-title">taco&#39;s blog</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            home
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            archives
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            tags
+          </a>
+        
+      
+        
+          <a href="http://www.wangyongblog.tech/post/zhe-li-shi-wangyong" class="site-nav">
+            about me
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+          <a class="social-link" href="https://github.com/WuHanMuMu" target="_blank">
+            <i class="fab fa-github"></i>
+          </a>
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      醉后不知天在水，满船清梦压星河
+    </div>
+    <div class="site-footer">
+      Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a><a href="https://beian.miit.gov.cn/">备案号鄂ICP备2020015939号-</a> | <a class="rss" href="https://taco-wang.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">elasticsearch 和mongodb 同步踩坑之旅</h2>
+            <div class="post-date">2021-08-18</div>
+            
+            <div class="post-content" v-pre>
+              <p>同步数据目前看有两种方式</p>
+<ol>
+<li>在mongodb 的操作后加入 对es 的同步，</li>
+<li>读取mongodb的 oplog然后间接同步数据</li>
+</ol>
+<p>第一种 目前 有两种思路，1是在代码里面修改逻辑，加入对es的同步，第二种 就是 使用Mongose的插件，比如这个<a href="https://github.com/mongoosastic/mongoosastic">mongoosastic</a> 不过作者已经不维护了，在找人维护，我没具体试过<br>
+第二种 查出来，有几个工具 ，<br>
+a. mongo-connector  可以将mongo的数据向多种数据库同步，比如 es ，mysql， influxdb等，但是也比较老了，据说还有很多坑<br>
+b. <a href="https://github.com/iftech-engineering/mongo-es">mongo-es</a> 国内一个公司出品，只能 mongo向es同步<br>
+具体对比可以看看<a href="https://zhuanlan.zhihu.com/p/26906652">这篇文章</a></p>
+<h3 id="正文开始了">正文开始了，</h3>
+<p>先看mongo-es的官方文档，除开 es和mongo的连接配置不谈， 主题还是对 task的配置</p>
+<p>task主要是每个collection对应的数据如何存储到es<br>
+from 配置</p>
+<ul>
+<li>phase [scan, tail] scan是全量更新，tail是 从设置的时间开始更新</li>
+<li>time 上述配置的时间</li>
+<li>id scan时 从哪条id开始</li>
+</ul>
+<p>extract</p>
+<ul>
+<li>db 数据库名称</li>
+<li>collection</li>
+<li>project 筛选条件</li>
+</ul>
+<p>transform</p>
+<ul>
+<li>mapping mongo字段和es字段的映射关系</li>
+<li>parent 指定es的 _parent字段</li>
+</ul>
+<p>load</p>
+<ul>
+<li>index 指定index名称</li>
+<li>type</li>
+<li>body 指定es的字段类型 如果是列表 指明为object</li>
+</ul>
+<p>第一个坑来了， load里面的body字段， 实际上定义的是es的mapping属性，如果这里配置不好，可能会导致es 搜索不出来数据，</p>
+<pre><code class="language-json">{
+    &quot;load&quot;:{
+        &quot;body&quot;:{
+            &quot;dynamic&quot;: true
+        }
+    }
+}
+</code></pre>
+<p>这里的dynamic 一定要填true， 它实际上定义的是 es里面的文档字段是否可以被索引，如果是false，那么 使用了条件的es查询将查不出来数据<br>
+第二呢，mongodb里面的字段 和es的字段一定要一一对应才能同步，这样确实不错，但是懒癌发作，吧这个项目clone 下来，自己改了一波 ，直接同步所有字段<br>
+项目发布之后 叫 wy-mongo-es</p>
+<p>第三，由于上面的魔改了，导致出现了一些小bug，比如mongodb update字段无法同步的问题， 这边我都在魔改的项目里面修复了</p>
+<p>第四，任务全量复制时，指定id 也无法全量同步数据的问题， 仔细研究了一波，伪代码大概是这样的</p>
+<pre><code class="language-javascript">    db.collection().find({_id: {
+        gte: new ObjectID(id)
+    }})
+</code></pre>
+<p>如果你的表里面的id 不是objecid，这里会导致无法查询到数据--，这就很尴尬了，我改成直接用string了， 当然也发布到 魔改项目里面了。</p>
+
+            </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://taco-wang.github.io/post/2021-nian-de-di-yi-pian-wen-zhang/">
+                  <h3 class="post-title">
+                    2021年的第一篇文章
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+              
+                <div id="gitalk-container" data-aos="fade-in"></div>
+              
+
+              
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/aos/3.0.0-beta.6/aos.js"></script>
+<script type="application/javascript">
+
+  AOS.init();
+
+  var app = new Vue({
+    el: '#app',
+    data: {
+      menuVisible: false,
+    },
+  })
+
+</script>
+
+
+  <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+  <script>
+    hljs.initHighlightingOnLoad()
+  </script>
+  
+
+    
+
+      
+        <script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+        <script>
+
+          var gitalk = new Gitalk({
+            clientID: 'c6f060b29f9e9411a966',
+            clientSecret: 'ce32215172c4da5972a924d2de37b26d70734bc5',
+            repo: 'blog_talk',
+            owner: 'taco-wang',
+            admin: ['taco-wang'],
+            id: (location.pathname).substring(0, 49),      // Ensure uniqueness and length less than 50
+            distractionFreeMode: false  // Facebook-like distraction free mode
+          })
+
+          gitalk.render('gitalk-container')
+
+        </script>
+        
+
+          
+
+              
+  </body>
+</html>

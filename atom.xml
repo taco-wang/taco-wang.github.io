@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://taco-wang.github.io</id>
+    <title>taco&apos;s blog</title>
+    <updated>2024-11-23T13:47:30.252Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://taco-wang.github.io"/>
+    <link rel="self" href="https://taco-wang.github.io/atom.xml"/>
+    <subtitle>醉后不知天在水，满船清梦压星河</subtitle>
+    <logo>https://taco-wang.github.io/images/avatar.png</logo>
+    <icon>https://taco-wang.github.io/favicon.ico</icon>
+    <rights>All rights reserved 2024, taco&apos;s blog</rights>
+    <entry>
+        <title type="html"><![CDATA[如何统计AI代码生成率]]></title>
+        <id>https://taco-wang.github.io/post/ru-he-tong-ji-ai-dai-ma-sheng-cheng-lu/</id>
+        <link href="https://taco-wang.github.io/post/ru-he-tong-ji-ai-dai-ma-sheng-cheng-lu/">
+        </link>
+        <updated>2024-11-23T13:20:30.000Z</updated>
+        <content type="html"><![CDATA[<p>最近AI越来越好用，claude 3 sonnet v2在写代码方面强的不行，各家大厂都纷纷写出来自家的AI代码生成率到20%甚至30%，咱们公司内部也在推广这个，但是怎么得到AI代码生成率这个指标呢？</p>
+<p>经过一段时间的研究， 方案也终于是整了出来。</p>
+<p>统计AI代码主要分两步， 1.获取到用户产生的AI代码 2. 使用用户提交的代码对比用户产生的AI代码</p>
+<p>得出最终的AI代码生产率</p>
+<p>很明显，难以获取的一般是用户所产生的AI代码，用户提交的AI代码根据不同的git 托管平台甚至直接使用git 命令都可以获取，下面我们就来分析一下怎么获取用户产生的AI代码。</p>
+<h1 id="步骤1-转发copilot请求">步骤1 转发copilot请求</h1>
+<p>以目前AI代码生成工具一哥copilot为例，目前大部分的插件一般情况下都是走的https 网络请求，我们可以通过设置代理的方式，让copilot发生的请求被我们的代理服务器所记录下来。</p>
+<h1 id="步骤2-解析copilot请求">步骤2 解析copilot请求</h1>
+<p>当用户设置了代理之后，如果大家公司内部已经默认装好了企业私有系统根证书的话，这里直接开始第二步，自己手动撸一个代理服务， 然后加载咱们的系统根证书，然后github上面有很多开源的代理服务哈，我就不给出代码了。</p>
+<p>当代理服务解析到请求之后，可以对包进行解密，拿到请求的参数和响应，这个时候就可以拿到对应的代码了。</p>
+<p>这里给大家一点提示，解析github.com 和microsoft.com这两个域名下的请求即可。</p>
+<p>下面就是正常的逻辑处理了，将获取到的AI代码解析成单行，去掉空格和特殊字符，存入数据库，就获取到了所有的AI代码啦。</p>
+<h1 id="步骤3-得到ai生成率">步骤3 得到AI生成率</h1>
+<p>然后 遍历每个commit， 逐行对比， 即可获得一个准确的数字，</p>
+<p>以上获取的AI代码生产率可以说是最准确的数字了，可以精确到行，希望可以给大家一点思路。</p>
+<p>如果大家想获取更详细的内容，也可以发邮件给我</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Too Many Files Open]]></title>
+        <id>https://taco-wang.github.io/post/too-many-files-open/</id>
+        <link href="https://taco-wang.github.io/post/too-many-files-open/">
+        </link>
+        <updated>2024-03-29T14:12:36.000Z</updated>
+        <content type="html"><![CDATA[<p>I've recently been working on a Go program, designed to start a proxy service for about 1-2 thousand people online simultaneously.</p>
+<p>The performance is satisfactory; on average, it consumes one full CPU core and uses negligible memory.</p>
+<p>However, I've encountered an issue that's quite frustrating. Occasionally, I see a flood of error logs like this:</p>
+<pre><code class="language-jsx">cannot accept new connection : Too Many Files Open
+
+</code></pre>
+<p>This is a common issue on web servers. Each HTTP connection opens one file descriptor. When too many connections are open, this error occurs.</p>
+<p>First, we need to check the program and system limits.</p>
+<pre><code class="language-jsx">cat /proc/$pid/limits | grep files
+Max open files            4096              4096              files
+
+ulimit -n
+4096
+
+</code></pre>
+<p>Under normal circumstances, we need to set the system limit.</p>
+<pre><code class="language-jsx">sysctl -w fs.file-max=500000
+
+</code></pre>
+<p>After this, you can check the new system limit.</p>
+<pre><code class="language-jsx">
+ulimit -n
+500000
+
+</code></pre>
+<p>However, the process limit remains unchanged. Due to time constraints, I decided to temporarily set the process limit.</p>
+<pre><code class="language-jsx">prlimit --pid=$pid --nofile=1000000:1000000
+
+</code></pre>
+<p>Ultimately, the issue was due to systemd. Services managed by systemd have a default file limit, which is usually 4096. You can adjust this in the process.service file.</p>
+<pre><code class="language-jsx">[Service]
+LimitNOFILE=1000000
+
+</code></pre>
+<p>Done.</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[ how to sync the price from different shopify store]]></title>
+        <id>https://taco-wang.github.io/post/how-to-sync-the-price-from-different-shopify-store/</id>
+        <link href="https://taco-wang.github.io/post/how-to-sync-the-price-from-different-shopify-store/">
+        </link>
+        <updated>2023-02-08T13:54:51.000Z</updated>
+        <content type="html"><![CDATA[<p>Recently I am focusing on a way to sync the price and coupon from two or more shopify store.</p>
+<p>here is the summary.</p>
+<p>In fact, the best way to do such thing is that shopify support the callback function when the price or coupon changes, but indeed there is no way.</p>
+<p>So we have to do some sync job repeatedly in a fixed time like 30 minutes .</p>
+<p>The job was separated to three step.</p>
+<p>First, we should get all the product of the source  shopify store, use this api .You could filter the product  by the active status or other things.</p>
+<p><a href="https://shopify.dev/api/admin-rest/2023-01/resources/product">Product API</a></p>
+<p>Then we should traverse the variants of product, then set price , stock or something to the target shopify site by this api</p>
+<p><a href="https://shopify.dev/api/admin-rest/2023-01/resources/product#put-products-product-id">Product API</a></p>
+<p>PS. There is no way to search what discount one product is using,  You have to check it by yourself.</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[2022 summary]]></title>
+        <id>https://taco-wang.github.io/post/2022-summary/</id>
+        <link href="https://taco-wang.github.io/post/2022-summary/">
+        </link>
+        <updated>2023-02-08T13:51:16.000Z</updated>
+        <content type="html"><![CDATA[<h1 id="work">Work</h1>
+<h2 id="minivote">Minivote</h2>
+<p>In early 2022, I was fired just before the Chinese New Year Festival. That same year, Minivote was launched, a project to refactor the class system designed for children under 10 years old. This project also included support for In-App Purchases (IAP) of both Google and Apple. I had done most of the code contributions, but life can be tough.</p>
+<h2 id="anker">Anker</h2>
+<p>After leaving Minivote, I joined Anker and have been working there ever since. To be honest, it's a great company, bigger than any I have worked for before. In fact, I received the final year prize the first time from Anker in 2016-2022, though it was less than expected.</p>
+<p>I switched my coding language to Golang this year and it looks promising. In the early part of this year, I struggled with the pressure of work and home. After a difficult time, I got used to the life and was eager to make more money. It's hard, but I'm trying.</p>
+<p>In Anker, my main job is</p>
+<ul>
+<li>IAP</li>
+<li>shopify store(discount, price, order, referral)</li>
+<li>connect the firmware</li>
+</ul>
+<h1 id="reading">Reading</h1>
+<p>This year, I read the book &quot;Conflict Management&quot;. It's a great book.</p>
+<h1 id="travel">Travel</h1>
+<p>No travel this year.</p>
+<h1 id="summary">Summary</h1>
+<p>This year of 2022 has been one of the toughest for me, but despite the hardships, I was blessed in the most special way with the most precious gift life has bestowed upon me - my daughter. She fills my life with boundless joy and I can never thank the universe enough for giving me such an incredible blessing. I look forward to cherishing her for the rest of my life and taking every opportunity to make sure that she knows how much I love her.</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[some tips about IAP(apple and google)]]></title>
+        <id>https://taco-wang.github.io/post/some-tips-about-iapapple-and-google/</id>
+        <link href="https://taco-wang.github.io/post/some-tips-about-iapapple-and-google/">
+        </link>
+        <updated>2022-11-27T13:17:15.000Z</updated>
+        <content type="html"><![CDATA[<p>recently I was very busy in the work about the IAP(in app purchase).<br>
+After this, it comes to me that should write some summery of the hard work.Actually, the hardest part is searching the doc of google and apple IAP. You can not get the things you want from the obscure document directly. then i will do my best to make it easy for a beginner in the IAP to develop.<br>
+in the first, you should have a admin account of apple and google admin site. According to the type of product you want selling to the customer , create product or subsribtion in the config. after creating the prodcuts,  in the app ,you should call the sdk of apple / google. Then I will introduce some question not listed in the doc.<br>
+Testing for the google, you can register a google account yourself, the in the play admin , set the prize tester list, set the beta test list, the save.<br>
+After logining into the play store, you cannot use the google play pay.<br>
+In most of case , it should be the mistake of cache.<br>
+There are many cache in the google, like products, secrets and discount, you can get many strange error  following the doc of google before the cache is flushed.<br>
+you can do nothing but wait. There maybe are many different error when you are testing the google IAP using the test accont ,  in most of cases, you'd better bind one visa card and change the country of account to US, and wating for one or two days, everythings goes OK.</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[how strapi unlock the enterprise(for study)]]></title>
+        <id>https://taco-wang.github.io/post/how-strapi-unlock-the-enterprisefor-study/</id>
+        <link href="https://taco-wang.github.io/post/how-strapi-unlock-the-enterprisefor-study/">
+        </link>
+        <updated>2022-08-20T14:47:51.000Z</updated>
+        <content type="html"><![CDATA[<p>Strapi is a very famous and powerful CMS system. It has a business enterprise version to limit free user that can only create three type of user role. So how could it do this. Let’s learn it.</p>
+<p>First, we should run a strapi instance in your local machine. Open the admin url, press the F12, in the developer tools, we can find a request named information like this.<br>
+<img src="https://taco-wang.github.io/post-images/1661007000346.png" alt="" loading="lazy"></p>
+<p>the response should like this</p>
+<pre><code class="language-json">{&quot;data&quot;:
+{&quot;currentEnvironment&quot;:&quot;development&quot;,
+&quot;autoReload&quot;:true,
+&quot;strapiVersion&quot;:&quot;4.1.10&quot;,
+&quot;nodeVersion&quot;:&quot;v16.14.2&quot;,&quot;communityEdition&quot;:false,&quot;useYarn&quot;:false}}
+</code></pre>
+<p>the column <strong>communityEdition</strong> should be the enterprise credentials.</p>
+<p>In the normal case , we cannot search the url “<code>/admin/information</code>” in the node_modules. haha , but when we search <code>information()</code>, you could get this.<br>
+<img src="https://taco-wang.github.io/post-images/1661007049910.png" alt="" loading="lazy"></p>
+<p>the code is</p>
+<pre><code class="language-jsx">const currentEnvironment = strapi.config.get('environment');
+const autoReload = strapi.config.get('autoReload', false);
+const strapiVersion = strapi.config.get('info.strapi', null);
+const nodeVersion = process.version;
+const communityEdition = !strapi.EE;
+const useYarn = await exists(path.join(process.cwd(), 'yarn.lock'));
+</code></pre>
+<pre><code> the credential should be injected when the process start. 
+</code></pre>
+<p>then above the code I found this.</p>
+<pre><code class="language-jsx">const ee = require('@strapi/strapi/lib/utils/ee');
+</code></pre>
+<p>Ok, it’s the final file.  the path is <code>node_modules/@strapi/strapi/lib/utils/ee.js</code></p>
+<pre><code class="language-jsx">const licensePath = path.join(dir, 'license.txt');
+
+  let license;
+  if (_.has(process.env, 'STRAPI_LICENSE')) {
+    license = process.env.STRAPI_LICENSE;
+  } else if (fs.existsSync(licensePath)) {
+    license = fs.readFileSync(licensePath).toString();
+  }
+  if (_.isNil(license)) {
+    internals.isEE = false;
+    return false;
+  }
+</code></pre>
+<p>the core logic seems like if you buy the enterprise credential, you would get a license that you could put it in the <strong>STRAPI_LICENSE</strong>  directory.</p>
+<p>The last , ps. if you want to test the EE in your local , just do this .<br>
+<img src="https://taco-wang.github.io/post-images/1661007063834.png" alt="" loading="lazy"></p>
+<p>and</p>
+<figure data-type="image" tabindex="1"><img src="https://taco-wang.github.io/post-images/1661007071163.png" alt="" loading="lazy"></figure>
+<p>and the sso feature is here <code>node_modules/@strapi/admin/server/controllers/admin.js</code><br>
+<img src="https://taco-wang.github.io/post-images/1661007078503.png" alt="" loading="lazy"></p>
+<p>haha . When I saw FIXME, I felt a little funny.</p>
+<p>The End. Welcome to contact me.</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[how to filter many to many relation in strapi]]></title>
+        <id>https://taco-wang.github.io/post/how-to-filter-many-to-many-relation-in-strapi/</id>
+        <link href="https://taco-wang.github.io/post/how-to-filter-many-to-many-relation-in-strapi/">
+        </link>
+        <updated>2022-06-16T12:13:27.000Z</updated>
+        <content type="html"><![CDATA[<h1 id="how-to-filter-many-to-many-relation-in-strapi">how to filter many to many relation in strapi</h1>
+<p>I have two content-type in strapi like tag and article. And want to filter articles which both have several tags like 1,2,4. In the standard strapi, you cannot do this .so I have to change the default behavior of strapi article api. you can find the document in <a href="https://docs.strapi.io/developer-docs/latest/development/backend-customization/controllers.html#adding-a-new-controller">here</a></p>
+<h2 id="first">first</h2>
+<p>we need to define the special parameter to reach our goals. in fact I choose the multiTag in the query parameter</p>
+<pre><code class="language-jsx">query{
+	multiTag: [1,2,3]	
+}
+</code></pre>
+<h2 id="second">second</h2>
+<p>open file in your project</p>
+<p><strong>/src/api/article/controllers/article.js</strong></p>
+<p>! notice: the path would change with your content-type name.</p>
+<p>you should get this</p>
+<pre><code class="language-jsx">const { createCoreController } = require('@strapi/strapi').factories;
+
+module.exports = createCoreController('api::article.article');
+</code></pre>
+<p>then add some code to this</p>
+<pre><code class="language-jsx">async function getMultiTag(conn, multiTag){
+	// the sql should like this 
+	const sql = `
+		select 
+			t.id 
+		from 
+			article t 
+		inner join (
+			select article_id from article_link_tag 
+			where tag_id in (${string(multiTag})
+			group by article_id having count(*) = ${multiTag.length}
+		) t2 on t.id = t2.article_id
+	`
+	const result = await conn.raw(sql)
+	// result should like this 
+
+[
+	// actual data
+	[
+		{&quot;id&quot; : 1}	
+	],
+  // meta info
+	[
+	{
+		&quot;db&quot; : 1
+	}
+	]
+]
+	return result[0]
+}
+
+module.exports = createCoreController('api::pet-article.pet-article', ({ strapi }) =&gt; ({
+   async find(ctx) {
+    ctx.query = { ...ctx.query, local: 'en' }
+		// get the param
+    const multiTag = ctx.query?.multiTag
+    if (multiTag &amp;&amp; typeof multiTag == 'object' &amp;&amp; multiTag.length &gt; 0) {
+			// get the database connection
+      const conn = strapi.db.connection
+      const articles = await getMultiTag(conn, multiTag)
+			// when you have got the ids of article 
+			// you can do many things
+			// like this 
+			ctx.query.filter = {
+				...(ctx.query.filter || {}),
+				id: {
+					$in: articles.map(val =&gt; val.id)
+				}
+			}
+			// or just return the ids
+			// return { data: articles }
+    }
+    const { data, meta } = await super.find(ctx);
+    meta.date = Date.now()
+    return { data, meta };
+  },
+}));
+</code></pre>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[go proxy 私有仓库问题]]></title>
+        <id>https://taco-wang.github.io/post/go-proxy-si-you-cang-ku-wen-ti/</id>
+        <link href="https://taco-wang.github.io/post/go-proxy-si-you-cang-ku-wen-ti/">
+        </link>
+        <updated>2022-04-17T05:03:08.000Z</updated>
+        <content type="html"><![CDATA[<p>这几天接触了一个新的项目，但是由于有部分仓库是私有仓库，我环境又配置了goproxy<br>
+导致在执行 的时候，无法拉取代码。 报错都是确认是否有对这个仓库的权限</p>
+<pre><code>go mod tidy 
+</code></pre>
+<p>查询了一下，有几种解法<br>
+设置git的指向，将http指向ssh, 经过查证，这一个实际上不行，</p>
+<pre><code>git config --global url.&quot;git@gitlab.com:xxx/zz.git&quot;.insteadof &quot;https://gitlab.com/xxx/zz.git&quot;
+</code></pre>
+<p>他会和goproxy冲突 还是没办法拉取依赖</p>
+<p>第二种解法是设置 goprivate 这个我还没有尝试，试过了之后再来更新</p>
+<pre><code>export GOPRIVATE=git.xxx.com
+</code></pre>
+<p>更新。。。。<br>
+实际上以上两种方法我都没用，<br>
+直接配置git保存密码</p>
+<pre><code>git config --global credential.helper store
+
+</code></pre>
+<p>git clone 报错的仓库 输入密码就好了</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[linux磁盘空间满了]]></title>
+        <id>https://taco-wang.github.io/post/linux-ci-pan-kong-jian-man-liao/</id>
+        <link href="https://taco-wang.github.io/post/linux-ci-pan-kong-jian-man-liao/">
+        </link>
+        <updated>2022-03-30T12:33:36.000Z</updated>
+        <content type="html"><![CDATA[<p>昨天晚上后台服务突然挂了，赶紧登上去一看，服务进程一个都没了，我们的进程托管是用的pm2 ,<br>
+使用pm2 ls 一看，所有服务全没了，<br>
+然后有一行报错 , no disk space ...<br>
+磁盘满了。然后赶紧看看</p>
+<pre><code>df -h
+</code></pre>
+<p>大致是</p>
+<pre><code>udev            7.8G  4.0K  7.8G   1% /dev
+tmpfs           1.6G  7.6M  1.6G   1% /run
+/dev/vda1        50G   18G   31G  37% /
+tmpfs           7.8G   24K  7.8G   1% /dev/shm
+tmpfs           5.0M     0  5.0M   0% /run/lock
+tmpfs           7.8G     0  7.8G   0% /sys/fs/cgroup
+overlay          50G   50   0  100% /var/lib/docker/overlay2/7e886934ab879d74e652c79951a2ad5025b0b6c942afbc51f688b4e0d1b15b22/merged
+shm              64M     0   64M   0% /var/lib/docker/containers/79d703996dbed9c557e09f997aaede5c4224353756b9d2fc72d892036f5467de/mounts/shm
+shm              64M     0   64M   0% /var/lib/docker/containers/c9eefc124300ac8f008cbb2cb12434f83e23af10a6a34265ea750c6a50214658/mounts/shm
+tmpfs           1.6G     0  1.6G   0% /run/user/500
+</code></pre>
+<p>仔细观察是 overlay 满了，google一下 怀疑是 docker的日志文件满了，但是实际上去看呢，并没有多大的占用，最多也就2g<br>
+这个可就奇怪了。<br>
+然后执行</p>
+<pre><code>docker system df
+</code></pre>
+<p>发现镜像和容器加起来磁盘占用也不到2g，但是清理一下</p>
+<pre><code>docker system prune -a
+</code></pre>
+<p>执行完成之后并没有暖用，还是磁盘满的<br>
+然后pm2 info 服务进程 找到日志文件，先删了再说，空出来了10g左右的空间，然后把服务器跑起来了<br>
+然后在处理剩下的文件</p>
+<pre><code>sudo find . -xdev -type f -size +100M -print | xargs ls -lh | sort -k5,5 -h -r
+</code></pre>
+<p>寻找大于100m的文件，发现还有nginx的日志文件也需要清理一下。删完之后，居然还有20g左右的空间找不到占用的地方。。。<br>
+查看根目录下的所有文件夹占用</p>
+<pre><code>sudo du -s -h /* | sort -nr
+</code></pre>
+<p>加起来才20g 实际磁盘占用40g左右，</p>
+<p>又是根据一番查找，发现可能是因为 进程暴毙，文件句柄占用没有被释放，然后没有释放磁盘空间<br>
+查看上面的这些进程</p>
+<pre><code>lsof | grep deleted
+ps -p pid
+</code></pre>
+<p>拿到pid之后，可以看到 pm2托管的进程都没有释放<br>
+然后</p>
+<pre><code>// 这里释放服务的空间
+pm2 reload 服务
+// 这里释放pm2本身占用的空间
+pm2 update
+</code></pre>
+<p>最后 <code>df -h</code> 一看，舒服了，只占用30%了</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[mongodb 索引]]></title>
+        <id>https://taco-wang.github.io/post/mongodb-suo-yin-cai-keng/</id>
+        <link href="https://taco-wang.github.io/post/mongodb-suo-yin-cai-keng/">
+        </link>
+        <updated>2022-02-10T02:20:52.000Z</updated>
+        <content type="html"><![CDATA[<p>最近工作中用到mongodb，大批量的用户物品发送失败，现在需要进行补发，目前来看范围查询mongo性能很差，尝试优化一下</p>
+<pre><code>db.col.find({
+    num: 500
+}).explain('executionStats')
+</code></pre>
+<p>结果如下<br>
+<img src="https://taco-wang.github.io/post-images/1644460626136.png" alt="" loading="lazy"><br>
+query used the following index 就代表这个查询用到的索引，<br>
+document examined 文档扫描数量<br>
+index key examined索引扫描数量<br>
+给col加上索引</p>
+<pre><code>db.col.createIndex({
+    num: 1 // 这里的1是表示升序索引，
+}, { 
+    background: true // 后台创建索引
+})
+</code></pre>
+<p>就ok了</p>
+]]></content>
+    </entry>
+</feed>

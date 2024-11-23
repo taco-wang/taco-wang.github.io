@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+
+<title>
+  how strapi unlock the enterprise(for study) | taco&#39;s blog
+</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/5.15.1/css/all.css" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://taco-wang.github.io/favicon.ico?v=1732369647787">
+<link rel="stylesheet" href="https://taco-wang.github.io/styles/main.css">
+
+
+  
+    <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css" />
+    
+
+      
+          
+
+            <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/aos/3.0.0-beta.6/aos.css" />
+            <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+            
+              <script async src="https://www.googletagmanager.com/gtag/js?id=UA-178669289-1"></script>
+              <script>
+                window.dataLayer = window.dataLayer || [];
+                function gtag() { dataLayer.push(arguments); }
+                gtag('js', new Date());
+
+                gtag('config', 'UA-178669289-1');
+              </script>
+              
+    <meta name="description" content="Strapi is a very famous and powerful CMS system. It has a business enterprise version to limit free user that can only c..." />
+    <meta name="keywords" content="" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://taco-wang.github.io">
+        <img src="https://taco-wang.github.io/images/avatar.png?v=1732369647787" class="site-logo">
+        <h1 class="site-title">taco&#39;s blog</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            home
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            archives
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            tags
+          </a>
+        
+      
+        
+          <a href="http://www.wangyongblog.tech/post/zhe-li-shi-wangyong" class="site-nav">
+            about me
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+          <a class="social-link" href="https://github.com/WuHanMuMu" target="_blank">
+            <i class="fab fa-github"></i>
+          </a>
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      醉后不知天在水，满船清梦压星河
+    </div>
+    <div class="site-footer">
+      Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a><a href="https://beian.miit.gov.cn/">备案号鄂ICP备2020015939号-</a> | <a class="rss" href="https://taco-wang.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">how strapi unlock the enterprise(for study)</h2>
+            <div class="post-date">2022-08-20</div>
+            
+            <div class="post-content" v-pre>
+              <p>Strapi is a very famous and powerful CMS system. It has a business enterprise version to limit free user that can only create three type of user role. So how could it do this. Let’s learn it.</p>
+<p>First, we should run a strapi instance in your local machine. Open the admin url, press the F12, in the developer tools, we can find a request named information like this.<br>
+<img src="https://taco-wang.github.io/post-images/1661007000346.png" alt="" loading="lazy"></p>
+<p>the response should like this</p>
+<pre><code class="language-json">{&quot;data&quot;:
+{&quot;currentEnvironment&quot;:&quot;development&quot;,
+&quot;autoReload&quot;:true,
+&quot;strapiVersion&quot;:&quot;4.1.10&quot;,
+&quot;nodeVersion&quot;:&quot;v16.14.2&quot;,&quot;communityEdition&quot;:false,&quot;useYarn&quot;:false}}
+</code></pre>
+<p>the column <strong>communityEdition</strong> should be the enterprise credentials.</p>
+<p>In the normal case , we cannot search the url “<code>/admin/information</code>” in the node_modules. haha , but when we search <code>information()</code>, you could get this.<br>
+<img src="https://taco-wang.github.io/post-images/1661007049910.png" alt="" loading="lazy"></p>
+<p>the code is</p>
+<pre><code class="language-jsx">const currentEnvironment = strapi.config.get('environment');
+const autoReload = strapi.config.get('autoReload', false);
+const strapiVersion = strapi.config.get('info.strapi', null);
+const nodeVersion = process.version;
+const communityEdition = !strapi.EE;
+const useYarn = await exists(path.join(process.cwd(), 'yarn.lock'));
+</code></pre>
+<pre><code> the credential should be injected when the process start. 
+</code></pre>
+<p>then above the code I found this.</p>
+<pre><code class="language-jsx">const ee = require('@strapi/strapi/lib/utils/ee');
+</code></pre>
+<p>Ok, it’s the final file.  the path is <code>node_modules/@strapi/strapi/lib/utils/ee.js</code></p>
+<pre><code class="language-jsx">const licensePath = path.join(dir, 'license.txt');
+
+  let license;
+  if (_.has(process.env, 'STRAPI_LICENSE')) {
+    license = process.env.STRAPI_LICENSE;
+  } else if (fs.existsSync(licensePath)) {
+    license = fs.readFileSync(licensePath).toString();
+  }
+  if (_.isNil(license)) {
+    internals.isEE = false;
+    return false;
+  }
+</code></pre>
+<p>the core logic seems like if you buy the enterprise credential, you would get a license that you could put it in the <strong>STRAPI_LICENSE</strong>  directory.</p>
+<p>The last , ps. if you want to test the EE in your local , just do this .<br>
+<img src="https://taco-wang.github.io/post-images/1661007063834.png" alt="" loading="lazy"></p>
+<p>and</p>
+<figure data-type="image" tabindex="1"><img src="https://taco-wang.github.io/post-images/1661007071163.png" alt="" loading="lazy"></figure>
+<p>and the sso feature is here <code>node_modules/@strapi/admin/server/controllers/admin.js</code><br>
+<img src="https://taco-wang.github.io/post-images/1661007078503.png" alt="" loading="lazy"></p>
+<p>haha . When I saw FIXME, I felt a little funny.</p>
+<p>The End. Welcome to contact me.</p>
+
+            </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://taco-wang.github.io/post/how-to-filter-many-to-many-relation-in-strapi/">
+                  <h3 class="post-title">
+                    how to filter many to many relation in strapi
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+              
+                <div id="gitalk-container" data-aos="fade-in"></div>
+              
+
+              
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/aos/3.0.0-beta.6/aos.js"></script>
+<script type="application/javascript">
+
+  AOS.init();
+
+  var app = new Vue({
+    el: '#app',
+    data: {
+      menuVisible: false,
+    },
+  })
+
+</script>
+
+
+  <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+  <script>
+    hljs.initHighlightingOnLoad()
+  </script>
+  
+
+    
+
+      
+        <script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+        <script>
+
+          var gitalk = new Gitalk({
+            clientID: 'c6f060b29f9e9411a966',
+            clientSecret: 'ce32215172c4da5972a924d2de37b26d70734bc5',
+            repo: 'blog_talk',
+            owner: 'taco-wang',
+            admin: ['taco-wang'],
+            id: (location.pathname).substring(0, 49),      // Ensure uniqueness and length less than 50
+            distractionFreeMode: false  // Facebook-like distraction free mode
+          })
+
+          gitalk.render('gitalk-container')
+
+        </script>
+        
+
+          
+
+              
+  </body>
+</html>

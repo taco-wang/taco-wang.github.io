@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+
+<title>
+  adonisjs 源码分析 | taco&#39;s blog
+</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/5.15.1/css/all.css" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://taco-wang.github.io/favicon.ico?v=1732369647787">
+<link rel="stylesheet" href="https://taco-wang.github.io/styles/main.css">
+
+
+  
+    <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css" />
+    
+
+      
+          
+
+            <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/aos/3.0.0-beta.6/aos.css" />
+            <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+            
+              <script async src="https://www.googletagmanager.com/gtag/js?id=UA-178669289-1"></script>
+              <script>
+                window.dataLayer = window.dataLayer || [];
+                function gtag() { dataLayer.push(arguments); }
+                gtag('js', new Date());
+
+                gtag('config', 'UA-178669289-1');
+              </script>
+              
+    <meta name="description" content="adonisjs是一个node.js的web框架，主要在web安全领域做的比较好一点，所以俺研究了一下adonisjs的源码，
+server启动过程分析
+基础模块
+
+core 核心模块，处理命令 ，查看app状态
+httpserver ht..." />
+    <meta name="keywords" content="" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://taco-wang.github.io">
+        <img src="https://taco-wang.github.io/images/avatar.png?v=1732369647787" class="site-logo">
+        <h1 class="site-title">taco&#39;s blog</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            home
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            archives
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            tags
+          </a>
+        
+      
+        
+          <a href="http://www.wangyongblog.tech/post/zhe-li-shi-wangyong" class="site-nav">
+            about me
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+          <a class="social-link" href="https://github.com/WuHanMuMu" target="_blank">
+            <i class="fab fa-github"></i>
+          </a>
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      醉后不知天在水，满船清梦压星河
+    </div>
+    <div class="site-footer">
+      Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a><a href="https://beian.miit.gov.cn/">备案号鄂ICP备2020015939号-</a> | <a class="rss" href="https://taco-wang.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">adonisjs 源码分析</h2>
+            <div class="post-date">2022-01-18</div>
+            
+            <div class="post-content" v-pre>
+              <p>adonisjs是一个node.js的web框架，主要在web安全领域做的比较好一点，所以俺研究了一下adonisjs的源码，</p>
+<h2 id="server启动过程分析">server启动过程分析</h2>
+<p>基础模块</p>
+<ol>
+<li>core 核心模块，处理命令 ，查看app状态</li>
+<li>httpserver http服务模块，负责与子进程的通讯</li>
+<li>assember 官方的命令实现，如server等，</li>
+<li>application 实际运行的应用，ioc挂载在上面，application.container</li>
+</ol>
+<p>node ace serve 命令调用流程</p>
+<p>先初始化一个core.ignitor对象</p>
+<p>在core.kenel里面处理声明文件(manifest.json)，然后加载command对象，</p>
+<p>然后开始启动application，这里具体的分析放到下面，启动完application之后会执行命令</p>
+<p>server 命令会初始化一个assembler下的httpServer ，</p>
+<pre><code class="language-tsx">new DevServer().start()
+// 声明了一个httpServer 
+this.httpServer = new HttpServer.HttpServer()
+this.httpServer.start() // 这里主要用于接收子进程的消息
+</code></pre>
+<p>start里面会拉起一个子进程 ，用于启动http服务</p>
+<pre><code class="language-tsx">// 这里是子进程执行server.ts 并且预加载register, 注册了 实例
+this.childProcess = execa.node('server.ts', [], {
+      buffer: false,
+      stdio: 'inherit',
+      cwd: this.projectRoot,
+      env: {
+        FORCE_COLOR: 'true',
+        ...this.env,
+      },
+      nodeOptions: ['-r', '@adonisjs/assembler/build/register'].concat(this.nodeArgs),
+    })
+// server.ts
+new Ignitor(__dirname).httpServer().start()
+// start
+this.createServer(serverCallback)
+this.monitorHttpServer()
+await this.listen()
+//  createServer 
+import {createServer} from 'http'
+const handler = this.server.handle.bind(this.server)
+this.server.instance = createServer(handler)
+// listen instance就是官方库的http
+this.application.start()
+this.server.instance.listen()
+
+</code></pre>
+<p>从子进程拿到消息后 打印启动成功</p>
+<pre><code class="language-tsx">this.childProcess.on('message', (message) =&gt; {
+            if (message &amp;&amp; message['origin'] === 'adonis-http-server') {
+                this.emit('ready', message);
+            }
+        });
+</code></pre>
+<h2 id="子进程会拉起实际的http服务">子进程会拉起实际的http服务</h2>
+<pre><code>node -r register server.js
+</code></pre>
+<p>在register中 注册了一个require的hook函数，将 '@adonis:ioc' 的包 替换为 global['use']<br>
+global['use']的注册 在app启动过程中会注册</p>
+<h2 id="application启动过程分析">application启动过程分析</h2>
+<p>在constructor中先声明了rcfile, 即 .adonisjsrc.json， 声明了预加载文件和providers (这里也是ioc不过是外部包的注入)，并且设置环境变量，全局ioc属性，吧application注册到ioc，注册好helper</p>
+<p>目前主要预加载  全局中间件和路由</p>
+<p>app 启动流程  内部维护了一个 state</p>
+<p>流转过程为</p>
+<p>initiated 初始化</p>
+<p>⇒ setup  加载配置 环境变量 注册 logger等</p>
+<p>⇒ registered  加入providers</p>
+<p>⇒ booted 启动provider</p>
+<p>⇒ 加载预加载文件</p>
+<p>⇒ ready 启动成功</p>
+<p>处理命令时会调用wire, 实际代码如下，这里就是app的流转过程</p>
+<pre><code class="language-tsx">await this.application.setup();
+await this.application.registerProviders();
+await this.application.bootProviders();
+await this.application.requirePreloads();
+// requirePreloads
+this.resolveModule(node.file)
+// resolveModule
+require(path)
+</code></pre>
+<h2 id="请求生命周期">请求生命周期</h2>
+<p>实际最后处理逻辑在 http-server/server/index 下的handle 函数 handle 是通用函数，可以用在其它的httpServer里面</p>
+<p>可以看到每一次请求都是一个新的context对象</p>
+<pre><code class="language-tsx">// request初始化主要做了参数解析
+const request = new Request.Request(req, res, this.encryption, this.httpConfig);
+const response = new Response.Response(req, res, this.encryption, this.httpConfig, this.router);
+// 这里做个一个请求观察器
+const requestAction = this.getProfilerRow(request);
+const ctx = this.getContext(request, response, requestAction);
+// getContext 可以看到每一个request都是带了id的
+getContext(request, response, profilerRow) {
+        return new HttpContext.HttpContext(request, response, this.application.logger.child({
+            request_id: request.id(),
+        }), profilerRow);
+    }
+this.handleRequest(ctx, requestAction, res)
+// handleRequest 
+await this.runBeforeHooksAndHandler(ctx);
+await this.hooks.executeAfter(ctx);
+requestAction.end({ status_code: res.statusCode });
+ctx.response.finish();
+</code></pre>
+<p>实际上处理请求分两个函数，before 和after，</p>
+<p>before函数 先执行before的hook函数</p>
+<pre><code class="language-tsx">// 先执行before hooks
+return this.hooks.executeBefore(ctx).then((shortcircuit) =&gt; {
+            if (!shortcircuit) {
+                return this.requestHandler.handle(ctx);
+            }
+});
+</code></pre>
+<p>然后找到请求的对应处理路由，加载中间件，将最后处理函数放到最后，然后开始执行中间件</p>
+<pre><code class="language-tsx">
+// 然后实际处理开始 这里的middlware都是从ioc容器中取出来
+this.requestHandler =  new RequestHandler(this.middleware, this.router)
+// requestHandler
+async handle(ctx) {
+				// 这里对路由进行匹配，写入参数 
+        this.findRoute(ctx);
+        return this.handleRequest(ctx);
+}
+// handleRequest 
+this.globalMiddleware = new co_compose.Middleware().register(middleware);
+        this.handleRequest = (ctx) =&gt; {
+            return this.globalMiddleware
+                .runner()
+                .executor(this.executeMiddleware)
+                .finalHandler(ctx.route.meta.finalHandler, [ctx])
+                .run([ctx]);
+}
+</code></pre>
+<p>中间件的run函数执行, 实现的灰常优雅，在内部实现了队列，调用next之后，会等待后面的所有中间件执行完毕，完成了洋葱模型</p>
+<pre><code class="language-tsx">// run 函数 
+private invoke() {
+    const fn = this.list[this.index++]
+    if (!fn) {
+      return this.registeredFinalHandler.fn(...this.registeredFinalHandler.args)
+    }
+    return this.executorFn(fn, this.params)
+ }
+// 这里写的很好，简洁而又有效，
+// next 函数就是这里的invoke 动态调用下一个函数
+// run 函数
+this.params = params.concat(this.invoke.bind(this))
+return this.invoke()
+</code></pre>
+<p>再来看看executeAfter ,和before里面类似</p>
+<pre><code class="language-tsx">for (let hook of this.hooks.after) {
+    await hook(ctx);
+}
+</code></pre>
+<h2 id="ioc处理">ioc处理</h2>
+<p>先看如何注入</p>
+<p>使用了@inject的类 他的constructor都会被写入inject 属性，</p>
+<pre><code class="language-tsx">if (!target.constructor.hasOwnProperty('inject')) {
+            Object.defineProperty(target.constructor, 'inject', {
+                value: {},
+            });
+        }
+target.constructor.inject[propertyKey] = target.constructor.inject[propertyKey] || [];
+</code></pre>
+<p>以route中的函数依赖注入为代表</p>
+<pre><code class="language-tsx">// 这里的handler实际上是一个string，
+Route.post('/login', 'AuthController.login') 
+// 这里在路由提交完之后，调用了optimize函数，其中compileHandler 这里将实际处理函数替换
+compileHandler(route) {
+			this.resolver = container.getResolver(undefined, 'httpControllers', 'App/Controllers/Http');
+      route.meta.resolvedHandler = this.resolver.resolve(route.handler, route.meta.namespace);
+}
+// 这里将router的resolvedHandler 注册好了之后，去找真正的处理函数
+{
+	type: 'alias',
+	method: 'get',
+	namespace: 'App/Controllers/Http/ProductController',
+}
+this.runRouteHandler = async (ctx) =&gt; {
+            const routeHandler = ctx.route.meta.resolvedHandler;
+             await this.resolver.call(routeHandler, undefined, [ctx]);
+};
+// 核心在于 这里的call
+// routeHandler {type: 'alias', namespace: 'App/Controllers/Http/ProductController', method: 'list'}
+// 这里实际上 是先makeAsync 实例化这个对象然后在调用 callSync, 最后是这个方法和参数
+public async call(
+    namespace: string | IocResolverLookupNode&lt;string&gt;,
+    prefixNamespace?: string,
+    args?: any[]
+  ): Promise&lt;any&gt; {
+    const lookupNode =
+      typeof namespace === 'string' ? this.resolve(namespace, prefixNamespace) : namespace
+    return this.container.callAsync(
+      await this.container.makeAsync(lookupNode.namespace),
+      lookupNode.method,
+      args
+    )
+  }
+// makeAsync 这里实际上就是执行了
+async makeAsync(target, method, args) {
+	return await target[method](args)
+}
+require(path)
+// makeAsync 这里直接new这个对象，并且把依赖注入进去
+return new target(...(await this.resolveAsync(target.name, this.getInjections(target, 'instance'), runtimeValues)))
+// getInjections 直接判断这个对象是否有inject prop是instance
+return target.constructor.hasOwnProperty('inject') ? target.inject[prop] || [] : [];
+// resolveAsync 这里是一个递归调用
+return Promise.all(injections.map((injection, index) =&gt; {return this.container.makeAsync(injection);}));
+</code></pre>
+<h2 id="adonisjs模块的ioc怎么做的">adonisjs模块的ioc怎么做的</h2>
+<p>在上面的启动中 会先预加载  @adonisjs/assembler/build/register，</p>
+<p>然后会调用adonisjs/require-ts包, 在adonisjs/application 中启动的时候会注册</p>
+<pre><code class="language-tsx">global[Symbol.for('ioc.use')] = this.container.use.bind(this.container);
+global[Symbol.for('ioc.make')] = this.container.make.bind(this.container);
+global[Symbol.for('ioc.call')] = this.container.call.bind(this.container);
+</code></pre>
+<p>然后在compile中注册一个require的hook， 然后通过adonisjs/ioc-transformer会将代码的require修改</p>
+<pre><code class="language-tsx">import Encryption from '@ioc:Adonis/Core/Encryption' 
+// 转化如下 然后 gloabal 是在app生命周期里面的registerGlobal中修改的
+require(global['ioc.use']('Adonis/Core/Encryption'))
+</code></pre>
+<p>性能优化问题</p>
+<p>在上面启动过程中 会执行</p>
+<pre><code class="language-tsx">this.server.optimize();
+// server 是由adonisjs/http-server注入
+this.server = this.application.container.use('Adonis/Core/Server')
+</code></pre>
+<p>最后实际的optimize代码</p>
+<pre><code class="language-tsx">/**
+     * Optimizes internal handlers, based upon the existence of
+     * before handlers and global middleware. This helps in
+     * increasing throughput by 10%
+     */
+    optimize() {
+        this.router.commit();
+        this.hooks.commit();
+        this.requestHandler.commit();
+    }
+</code></pre>
+<ul class="contains-task-list">
+<li class="task-list-item"><input class="task-list-item-checkbox" checked="" disabled="" type="checkbox" id="task-item-3843600"><label class="task-list-item-label" for="task-item-3843600">  rabbitmq 订阅实现</label></li>
+<li class="task-list-item"><input class="task-list-item-checkbox" checked="" disabled="" type="checkbox" id="task-item-3825926"><label class="task-list-item-label" for="task-item-3825926">  application生命周期 流程图</label></li>
+</ul>
+<figure data-type="image" tabindex="1"><img src="https://taco-wang.github.io/post-images/1642474856464.png" alt="" loading="lazy"></figure>
+<p>链接 <a href="http://assets.processon.com/chart_image/61bdc70b1e08534302e9addd.png">http://assets.processon.com/chart_image/61bdc70b1e08534302e9addd.png</a></p>
+<ul class="contains-task-list">
+<li class="task-list-item"><input class="task-list-item-checkbox" checked="" disabled="" type="checkbox" id="task-item-1850458"><label class="task-list-item-label" for="task-item-1850458">  ioc和middleware 时序图 类关系</label></li>
+</ul>
+<figure data-type="image" tabindex="2"><img src="https://taco-wang.github.io/post-images/1642474874953.png" alt="" loading="lazy"></figure>
+<p>链接 <a href="http://assets.processon.com/chart_image/61bdce8a1efad41dea251ac1.png">http://assets.processon.com/chart_image/61bdce8a1efad41dea251ac1.png</a></p>
+<p>adonisjs 启动类加载顺序</p>
+<p>链接 <a href="http://assets.processon.com/chart_image/61bf1f026376892b1df6547f.png">http://assets.processon.com/chart_image/61bf1f026376892b1df6547f.png</a></p>
+
+            </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://taco-wang.github.io/post/i18n-guo-ji-hua-cai-keng-zhi-lu/">
+                  <h3 class="post-title">
+                    i18n国际化踩坑之旅
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+              
+                <div id="gitalk-container" data-aos="fade-in"></div>
+              
+
+              
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/aos/3.0.0-beta.6/aos.js"></script>
+<script type="application/javascript">
+
+  AOS.init();
+
+  var app = new Vue({
+    el: '#app',
+    data: {
+      menuVisible: false,
+    },
+  })
+
+</script>
+
+
+  <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+  <script>
+    hljs.initHighlightingOnLoad()
+  </script>
+  
+
+    
+
+      
+        <script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+        <script>
+
+          var gitalk = new Gitalk({
+            clientID: 'c6f060b29f9e9411a966',
+            clientSecret: 'ce32215172c4da5972a924d2de37b26d70734bc5',
+            repo: 'blog_talk',
+            owner: 'taco-wang',
+            admin: ['taco-wang'],
+            id: (location.pathname).substring(0, 49),      // Ensure uniqueness and length less than 50
+            distractionFreeMode: false  // Facebook-like distraction free mode
+          })
+
+          gitalk.render('gitalk-container')
+
+        </script>
+        
+
+          
+
+              
+  </body>
+</html>

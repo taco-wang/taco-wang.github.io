@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+
+<title>
+  ddia 学习笔记（1） | taco&#39;s blog
+</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/5.15.1/css/all.css" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://taco-wang.github.io/favicon.ico?v=1732369647787">
+<link rel="stylesheet" href="https://taco-wang.github.io/styles/main.css">
+
+
+  
+    <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css" />
+    
+
+      
+          
+
+            <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/aos/3.0.0-beta.6/aos.css" />
+            <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+            
+              <script async src="https://www.googletagmanager.com/gtag/js?id=UA-178669289-1"></script>
+              <script>
+                window.dataLayer = window.dataLayer || [];
+                function gtag() { dataLayer.push(arguments); }
+                gtag('js', new Date());
+
+                gtag('config', 'UA-178669289-1');
+              </script>
+              
+    <meta name="description" content="
+
+持久型数据库（mysql) 为啥会比非 持久型数据库（redis）更快？
+这个东西是反直觉的，一般人正常来想，从内存里面读数据肯定比从磁盘里面读数据 要更快， 但是 mysql 也有可能 出现 读取的数据 缓存在内存中的情况，那为啥my..." />
+    <meta name="keywords" content="" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://taco-wang.github.io">
+        <img src="https://taco-wang.github.io/images/avatar.png?v=1732369647787" class="site-logo">
+        <h1 class="site-title">taco&#39;s blog</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            home
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            archives
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            tags
+          </a>
+        
+      
+        
+          <a href="http://www.wangyongblog.tech/post/zhe-li-shi-wangyong" class="site-nav">
+            about me
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+          <a class="social-link" href="https://github.com/WuHanMuMu" target="_blank">
+            <i class="fab fa-github"></i>
+          </a>
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      醉后不知天在水，满船清梦压星河
+    </div>
+    <div class="site-footer">
+      Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a><a href="https://beian.miit.gov.cn/">备案号鄂ICP备2020015939号-</a> | <a class="rss" href="https://taco-wang.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">ddia 学习笔记（1）</h2>
+            <div class="post-date">2020-12-28</div>
+            
+            <div class="post-content" v-pre>
+              <ol>
+<li>
+<p>持久型数据库（mysql) 为啥会比非 持久型数据库（redis）更快？</p>
+<p>这个东西是反直觉的，一般人正常来想，从内存里面读数据肯定比从磁盘里面读数据 要更快， 但是 mysql 也有可能 出现 读取的数据 缓存在内存中的情况，那为啥mysql 仍然还是要比 redis慢呢？<br>
+实际上，除开 读取磁盘的区别，更大的区别，redis 不需要 将 内存中的数据结构 编码(encode)为硬盘数据结构，不过现在 redis 也可以异步持久化，</p>
+</li>
+<li>
+<p>OLAP 和 OLTP的区别</p>
+<p>实际上这个很简单， OL 是 online 的意思,  tp 是 transaction process (事务处理), ap 是 analytical process (分析处理)， 简单的说OLAP用于数据仓库 数据分析等， OLTP就是正常事务处理，</p>
+</li>
+<li>
+<p>数据库的复制</p>
+<p>复制有很多种策略， 最简单的<br>
+a. 同步复制（性能最差）</p>
+<p>一条数据插入之后， 所有的从库 都要复制完成之后才算完成， 这个出现网络错误等问题之后，很容易崩溃，一般不建议</p>
+<p>b. 异步复制</p>
+<p>主库先插入数据，从库异步完成操作，<br>
+如果插入之后立刻读取可能会出现 读取不到最新数据的问题，（修复策略是 读取时 指定读主库）</p>
+</li>
+<li>
+<p>分区</p>
+<p>分区 一般是和复制 在一起， 即 既有 复制又有 分区，<br>
+分区是将表 分块， 分开存储， 分开有多种策略，<br>
+一般就是按 id的hash 分区 取 前两位 按照  36进制取值 然后根据分块 取值落点就行了，<br>
+用hash 取值分区呢，好处在于 ，均匀，不会出现 大量 热点数据 居中在一个分区上的情况，缺点在于 失去了数据的连续性，范围查询会变得麻烦，（ 解决方案呢：建立索引）<br>
+为什么不用 hash值除以分区数 取余数呢，即mod方案， 因为重新分区的情况， 分区数据可能会出现移动，原本是 1号分区的数据 可能变为了2号，大量数据都会移动，正常情况了 用hash 取值就够了</p>
+</li>
+<li>
+<p>事务</p>
+<p>事务关键词 ACID,  atomic ，consistency ， isolation， durability ，实际上类似 REST规范，你并不能通过 一个 数据库声明他是一个ACID数据 库，来预测他的行为，目前 还是以mysql为规范。<br>
+脏读 ：读到了未提交的数据<br>
+脏写： 两个事务同时提交的问题，覆盖写入<br>
+读已提交：mysql实现方式是， 如果事务未提交，读到旧数据，提交了 读新数据，</p>
+</li>
+</ol>
+
+            </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://taco-wang.github.io/post/wen-dang-shu-ju-ku-he-guan-xi-xing-shu-ju-ku-de-guan-xi/">
+                  <h3 class="post-title">
+                    文档数据库和关系型数据库的关系
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+              
+                <div id="gitalk-container" data-aos="fade-in"></div>
+              
+
+              
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/aos/3.0.0-beta.6/aos.js"></script>
+<script type="application/javascript">
+
+  AOS.init();
+
+  var app = new Vue({
+    el: '#app',
+    data: {
+      menuVisible: false,
+    },
+  })
+
+</script>
+
+
+  <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+  <script>
+    hljs.initHighlightingOnLoad()
+  </script>
+  
+
+    
+
+      
+        <script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+        <script>
+
+          var gitalk = new Gitalk({
+            clientID: 'c6f060b29f9e9411a966',
+            clientSecret: 'ce32215172c4da5972a924d2de37b26d70734bc5',
+            repo: 'blog_talk',
+            owner: 'taco-wang',
+            admin: ['taco-wang'],
+            id: (location.pathname).substring(0, 49),      // Ensure uniqueness and length less than 50
+            distractionFreeMode: false  // Facebook-like distraction free mode
+          })
+
+          gitalk.render('gitalk-container')
+
+        </script>
+        
+
+          
+
+              
+  </body>
+</html>

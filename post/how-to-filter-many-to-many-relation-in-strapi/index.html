@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+
+<title>
+  how to filter many to many relation in strapi | taco&#39;s blog
+</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/5.15.1/css/all.css" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://taco-wang.github.io/favicon.ico?v=1732369647787">
+<link rel="stylesheet" href="https://taco-wang.github.io/styles/main.css">
+
+
+  
+    <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css" />
+    
+
+      
+          
+
+            <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/aos/3.0.0-beta.6/aos.css" />
+            <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+            
+              <script async src="https://www.googletagmanager.com/gtag/js?id=UA-178669289-1"></script>
+              <script>
+                window.dataLayer = window.dataLayer || [];
+                function gtag() { dataLayer.push(arguments); }
+                gtag('js', new Date());
+
+                gtag('config', 'UA-178669289-1');
+              </script>
+              
+    <meta name="description" content="how to filter many to many relation in strapi
+I have two content-type in strapi like tag and article. And want to filter..." />
+    <meta name="keywords" content="" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://taco-wang.github.io">
+        <img src="https://taco-wang.github.io/images/avatar.png?v=1732369647787" class="site-logo">
+        <h1 class="site-title">taco&#39;s blog</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            home
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            archives
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            tags
+          </a>
+        
+      
+        
+          <a href="http://www.wangyongblog.tech/post/zhe-li-shi-wangyong" class="site-nav">
+            about me
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+          <a class="social-link" href="https://github.com/WuHanMuMu" target="_blank">
+            <i class="fab fa-github"></i>
+          </a>
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      醉后不知天在水，满船清梦压星河
+    </div>
+    <div class="site-footer">
+      Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a><a href="https://beian.miit.gov.cn/">备案号鄂ICP备2020015939号-</a> | <a class="rss" href="https://taco-wang.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">how to filter many to many relation in strapi</h2>
+            <div class="post-date">2022-06-16</div>
+            
+            <div class="post-content" v-pre>
+              <h1 id="how-to-filter-many-to-many-relation-in-strapi">how to filter many to many relation in strapi</h1>
+<p>I have two content-type in strapi like tag and article. And want to filter articles which both have several tags like 1,2,4. In the standard strapi, you cannot do this .so I have to change the default behavior of strapi article api. you can find the document in <a href="https://docs.strapi.io/developer-docs/latest/development/backend-customization/controllers.html#adding-a-new-controller">here</a></p>
+<h2 id="first">first</h2>
+<p>we need to define the special parameter to reach our goals. in fact I choose the multiTag in the query parameter</p>
+<pre><code class="language-jsx">query{
+	multiTag: [1,2,3]	
+}
+</code></pre>
+<h2 id="second">second</h2>
+<p>open file in your project</p>
+<p><strong>/src/api/article/controllers/article.js</strong></p>
+<p>! notice: the path would change with your content-type name.</p>
+<p>you should get this</p>
+<pre><code class="language-jsx">const { createCoreController } = require('@strapi/strapi').factories;
+
+module.exports = createCoreController('api::article.article');
+</code></pre>
+<p>then add some code to this</p>
+<pre><code class="language-jsx">async function getMultiTag(conn, multiTag){
+	// the sql should like this 
+	const sql = `
+		select 
+			t.id 
+		from 
+			article t 
+		inner join (
+			select article_id from article_link_tag 
+			where tag_id in (${string(multiTag})
+			group by article_id having count(*) = ${multiTag.length}
+		) t2 on t.id = t2.article_id
+	`
+	const result = await conn.raw(sql)
+	// result should like this 
+
+[
+	// actual data
+	[
+		{&quot;id&quot; : 1}	
+	],
+  // meta info
+	[
+	{
+		&quot;db&quot; : 1
+	}
+	]
+]
+	return result[0]
+}
+
+module.exports = createCoreController('api::pet-article.pet-article', ({ strapi }) =&gt; ({
+   async find(ctx) {
+    ctx.query = { ...ctx.query, local: 'en' }
+		// get the param
+    const multiTag = ctx.query?.multiTag
+    if (multiTag &amp;&amp; typeof multiTag == 'object' &amp;&amp; multiTag.length &gt; 0) {
+			// get the database connection
+      const conn = strapi.db.connection
+      const articles = await getMultiTag(conn, multiTag)
+			// when you have got the ids of article 
+			// you can do many things
+			// like this 
+			ctx.query.filter = {
+				...(ctx.query.filter || {}),
+				id: {
+					$in: articles.map(val =&gt; val.id)
+				}
+			}
+			// or just return the ids
+			// return { data: articles }
+    }
+    const { data, meta } = await super.find(ctx);
+    meta.date = Date.now()
+    return { data, meta };
+  },
+}));
+</code></pre>
+
+            </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://taco-wang.github.io/post/go-proxy-si-you-cang-ku-wen-ti/">
+                  <h3 class="post-title">
+                    go proxy 私有仓库问题
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+              
+                <div id="gitalk-container" data-aos="fade-in"></div>
+              
+
+              
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/aos/3.0.0-beta.6/aos.js"></script>
+<script type="application/javascript">
+
+  AOS.init();
+
+  var app = new Vue({
+    el: '#app',
+    data: {
+      menuVisible: false,
+    },
+  })
+
+</script>
+
+
+  <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+  <script>
+    hljs.initHighlightingOnLoad()
+  </script>
+  
+
+    
+
+      
+        <script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+        <script>
+
+          var gitalk = new Gitalk({
+            clientID: 'c6f060b29f9e9411a966',
+            clientSecret: 'ce32215172c4da5972a924d2de37b26d70734bc5',
+            repo: 'blog_talk',
+            owner: 'taco-wang',
+            admin: ['taco-wang'],
+            id: (location.pathname).substring(0, 49),      // Ensure uniqueness and length less than 50
+            distractionFreeMode: false  // Facebook-like distraction free mode
+          })
+
+          gitalk.render('gitalk-container')
+
+        </script>
+        
+
+          
+
+              
+  </body>
+</html>
